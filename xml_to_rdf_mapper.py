@@ -11,11 +11,11 @@ from rdflib import *
  
 
 
-sourceXML = "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\sourceXMLPerson.xml"
-sourceX3ML = "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\x3mlMapping.xml"
-generatorPolicy = "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\generator-policy.xml"
+sourceXML = ""
+sourceX3ML = ""
+generatorPolicy = ""
 
-f = open("C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\output.rdf", "wb")
+f = open("C:\\...\\output.rdf", "wb")
 
 # read in X3ML file
 treeM = ET.parse(sourceX3ML)
