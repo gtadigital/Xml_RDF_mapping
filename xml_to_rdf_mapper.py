@@ -11,11 +11,11 @@ from rdflib import *
  
 
 
-sourceXML = ""
-sourceX3ML = ""
-generatorPolicy = ""
+sourceXML = "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\sourceXMLPerson.xml"
+sourceX3ML = "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\x3mlMapping.xml"
+generatorPolicy = "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\generator-policy.xml"
 
-f = open("C:\\...\\output.rdf", "wb")
+f = open("C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\output.rdf", "wb")
 
 # read in X3ML file
 treeM = ET.parse(sourceX3ML)
@@ -81,7 +81,38 @@ g.add((person, RDF.type, getattr(crm, concept_type)))
 
 
 #fill graph
-#for x in rootM.iter("link")
+for x in rootM.iter("link"):
+    current_entity = person
+
+    relation_namespace = x.find("path/target_relation[1]/relationship").text.split(":", maxsplit=1)[0]
+    relation = x.find("path/target_relation[1]/relationship").text.split(":", maxsplit=1)[1]
+
+    target_entity_namespace = x.find("range/target_node/entity/type").text.split(":", maxsplit=1)[0]
+    target_entity_type = x.find("range/target_node/entity/type").text.split(":", maxsplit=1)[1]
+
+    generator = x.find("range/target_node/entity/instance_generator").get("name")
+    path_1 = x.find("range/target_node/entity/instance_generator/arg").text
+
+    if generator == "Literal":
+        print("")
+
+    elif generator == "UUID":
+        print("")
+
+    elif generator =="URIorUUID":
+        print("")
+
+    else:
+        path_2= rootG.find(".//generator[@name= '"+generator+"']/pattern").text
+
+    #    target_entity_value = rootS.find(path)
+
+
+
+
+    #g.add((current_entity, ))
+
+    #    print(path_2_2)
 
 
 #write graph data in output file
