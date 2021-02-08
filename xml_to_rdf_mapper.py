@@ -5,6 +5,7 @@ import os
 import lxml.etree as ET
 import argparse
 import rdflib
+import re
 from rdflib import Graph
 from rdflib import Namespace
 from rdflib import *
@@ -61,12 +62,30 @@ g.bind("skos", skos)
 g.bind("cpr", cpr)
 g.bind("sari", sari)
 
+#create namespace dictionary
+namespace_dict={}
+namespace_dict["rdf"]= "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+namespace_dict["ulan"]= "http://vocab.getty.edu/page/ulan/"
+namespace_dict["crm"]= "http://www.cidoc-crm.org/cidoc-crm/"
+namespace_dict["rdfs"]= "http://www.w3.org/2000/01/rdf-schema#"
+namespace_dict["crmdig"]= "http://www.ics.forth.gr/isl/CRMdig/"
+namespace_dict["gnd"]= "https://d-nb.info/"
+namespace_dict["frbr"]= "http://iflastandards.info/ns/fr/frbr/frbroo/"
+namespace_dict["crmpc"]= "http://www.cidoc-crm.org/crmpc/"
+namespace_dict["wikidata"]= "https://www.wikidata.org/wiki/"
+namespace_dict["sikart"]= "http://www.sikart.ch/"
+namespace_dict["skos"]= "http://www.w3.org/2004/02/skos/core#"
+namespace_dict["cpr"]= "https://www.schema.swissartresearch.net/cpr/"
+namespace_dict["sari"]= "https://resource.swissartresearch.net/"
+
 
 
 #create node for the person the xml input file is about
 #get type (e.g. crm:E21_person)
 concept_namespace = rootM.find("./mappings/mapping/domain/target_node/entity/type").text.split(":", maxsplit=1)[0]
 concept_type = rootM.find("./mappings/mapping/domain/target_node/entity/type").text.split(":", maxsplit=1)[1]
+path_1 = rootM.find("./mappings/mapping/domain/source_node").text.split("root", maxsplit=1)[1]
+
 
 #get identifier (i.e. uuid)
 uuid_search = ".//" + rootM.find("./mappings/mapping/domain/target_node/entity/instance_generator/arg").text[3:-7]
@@ -82,39 +101,81 @@ g.add((person, RDF.type, getattr(crm, concept_type)))
 
 #fill graph
 for x in rootM.iter("link"):
-    current_entity = person
 
+    #find predicate (i.e. namespace and relation type) of RDF triple (e.g. crm, P107)
     relation_namespace = x.find("path/target_relation[1]/relationship").text.split(":", maxsplit=1)[0]
     relation = x.find("path/target_relation[1]/relationship").text.split(":", maxsplit=1)[1]
 
+    #find object (i.e. namespace and entity type) of RDF triple (e.g. crm, E21)
     target_entity_namespace = x.find("range/target_node/entity/type").text.split(":", maxsplit=1)[0]
     target_entity_type = x.find("range/target_node/entity/type").text.split(":", maxsplit=1)[1]
 
-    generator = x.find("range/target_node/entity/instance_generator").get("name")
-    path_1 = x.find("range/target_node/entity/instance_generator/arg").text
 
-    if generator == "Literal":
-        print("")
+    #get current xpath for xml input file given by current position in x3ml input file
+    path_2= x.find("path/source_relation/relation").text
+    path= "."+ path_1 +"/"+ path_2
 
-    elif generator == "UUID":
-        print("")
-
-    elif generator =="URIorUUID":
-        print("")
-
-    else:
-        path_2= rootG.find(".//generator[@name= '"+generator+"']/pattern").text
-
-    #    target_entity_value = rootS.find(path)
+    value= ""      #value of current xpath in xml file
+    if rootS.find(path) is not None:
+        value= rootS.find(path).text
 
 
+    #find identifier of the object of the current RDF triple  (e.g. "https://resource.swissartresearch.net/person/debb2cce-9ab9-4f68-8782-efea2ed5e152/birth")
+    #from instance_generator tag in X3ML file and from corresponding generator tag in generator policy
+    generator_node = x.find("range/target_node/entity/instance_generator")
+    generator_name = x.find("range/target_node/entity/instance_generator").get("name")
+    generator_args = {}
+
+    for y in generator_node.iter("arg"):
+        arg_name= y.attrib['name']
+        arg_type= y.attrib['type']
+        arg_value= y.text         #value of the arg tag in XML input file
+        arg_final_value= y.text   #value to be passed to generator_args[]
+
+        #if arg_type is xpath the value to be passed to the generator is not arg_value
+        if arg_type == "xpath":
+            if arg_value.startswith("text", 0):
+                arg_final_value = value
+            
+            else:
+                arg_value= arg_value.replace("/text()", "", 1)
+                arg_value= arg_value.replace("..", "./entry", 1)
+
+                if rootS.find(arg_value) is not None:
+                    arg_final_value = rootS.find(arg_value).text
+        
+        generator_args[arg_name]= arg_final_value
+
+    generator = rootG.find(".//generator[@name= '"+generator_name+"']")
+    generator_pattern= rootG.find(".//generator[@name= '"+generator_name+"']/pattern")
+    triple_object_identifier=""
+    
+    if ((generator_pattern is not None) and (generator is not None)):
+        prefix = generator.attrib['prefix']
+        generator_namespace= namespace_dict[prefix]
+        generator_pattern_value = generator_pattern.text
+
+        generator_variables = re.findall(r'{(.*?)}', generator_pattern_value)
+
+        for v in generator_variables:
+            generator_pattern_value= generator_pattern_value.replace("{"+v+"}", generator_args[v])
+        
+        triple_object_identifier=generator_namespace+generator_pattern_value
+    
+
+    #create RDF triple and add it to graph
+    #triple_object_identifier="abc"+ str(counter)
+    triple_object= URIRef(triple_object_identifier)
+
+    g.add((triple_object, RDF.type, getattr(crm, target_entity_type)))
+    g.add((person, getattr(crm, relation), triple_object))
+    
 
 
-    #g.add((current_entity, ))
-
-    #    print(path_2_2)
 
 
 #write graph data in output file
 f.write(g.serialize(format='pretty-xml'))
 f.close()
+
+
