@@ -107,6 +107,7 @@ for q in rootM.iter("mapping"):
                 target_entity_namespace = target_entity_node.find("./type").text.split(":", maxsplit=1)[0]
                 target_entity_type = target_entity_node.find("./type").text.split(":", maxsplit=1)[1]
 
+
             #get current xpath for xml input file given by current position in x3ml input file
             path_2= x.find("path/source_relation/relation").text
             path= "."+ path_1 +"/"+ path_2
@@ -136,7 +137,7 @@ for q in rootM.iter("mapping"):
                         triple_object_identifier= rootS.find("./"+path_1+"/"+path_2).text
                 else:
                     uuid= rootS.find("./entry/_uuid").text
-                    triple_object_identifier=uuid+"-"+generator_name
+                    triple_object_identifier=uuid+"-"+target_entity_type
                     generator_namespace= "urn"
 
             elif generator_name == "URIorUUID":
@@ -194,6 +195,7 @@ for q in rootM.iter("mapping"):
                     generator_pattern_value= generator_pattern_value.replace(" ", "_")
                     triple_object_identifier= generator_pattern_value
 
+
             #create RDF triple and add it to graph
             if (target_entity_type!= "") and (triple_object_identifier!= "") and (generator_name != "Literal"):
                 triple_object= URIRef(eval(generator_namespace)[triple_object_identifier])
@@ -217,8 +219,9 @@ for q in rootM.iter("mapping"):
                 #check if tag <arg name="text"> extsists, if yes retrieve necessary information from tag
                 if label_gen_node.find("./arg[@name='text']") is not None:
                     if label_gen_node.find("./arg[@name='text']").attrib['type'] == "xpath":
-                        path_2= label_gen_node.find("./arg[@name='text']").text
-                        path= "."+path_1+"/"+path_2
+                        path_2= x.find("./range/source_node").text
+                        path_3= label_gen_node.find("./arg[@name='text']").text
+                        path= "."+path_1+"/"+path_2+ "/"+ path_3
                         path= path.replace("/text()", "", 1)
                         if rootS.find(path) is not None:
                             label_text= rootS.find(path).text
@@ -228,8 +231,9 @@ for q in rootM.iter("mapping"):
                 #check if tag <arg name="language"> extsists, if yes retrieve necessary information from tag
                 if label_gen_node.find("./arg[@name='language']") is not None:
                     if label_gen_node.find("./arg[@name='language']").attrib['type'] == "xpath":
-                        path_2= label_gen_node.find("./arg[@name='language']").text
-                        path= "./"+path_1+"/"+path_2
+                        path_2= x.find("./range/source_node").text
+                        path_3= label_gen_node.find("./arg[@name='language']").text
+                        path= "./"+path_1+"/"+path_2+ "/"+ path_3
                         path= path.replace("/text()", "", 1)
                         if rootS.find(path) is not None:
                             lang_text= rootS.find(path).text
@@ -237,11 +241,9 @@ for q in rootM.iter("mapping"):
                         lang_text= label_gen_node.find("./arg[@name='language']").text
                 
                 #add label to graph
-                g.add((triple_object, rdfs.label, Literal(label_text)))
+                g.add((triple_object, rdfs.label, Literal(label_text, lang= lang_text)))
 
             counter+=1
-            
-
 
 
 
