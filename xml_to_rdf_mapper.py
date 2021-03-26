@@ -79,8 +79,8 @@ def create_node(gen_ancestor_node, gen_node, count, path_2_value, current_subjec
             if rootS.find("./"+path_1+"/"+path_2) is not None:
                 triple_object_identifier= rootS.find("./"+path_1+"/"+path_2).text
         else:
-            uuid= rootS.find("./entry/_uuid").text
-            triple_object_identifier=uuid+"-"+target_entity_type
+            uuid_local= rootS.find("./entry/_uuid").text
+            triple_object_identifier=uuid_local+"-"+target_entity_type
             generator_namespace= "urn"
 
     elif generator_name == "URIorUUID":
@@ -109,10 +109,18 @@ def create_node(gen_ancestor_node, gen_node, count, path_2_value, current_subjec
             arg_value= w.text         #value of the arg tag in XML input file
             arg_final_value= w.text   #value to be passed to generator_args[]
 
+
             #if arg_type is xpath the value to be passed to the generator is not arg_value
             if arg_type == "xpath":
                 if arg_value.startswith("text", 0):
                     arg_final_value = val
+
+                elif arg_value.startswith("../..", 0):
+                    arg_value= arg_value.replace("/text()", "", 1)
+                    arg_value= arg_value.replace("../..", "./entry", 1)
+
+                    if rootS.find(arg_value) is not None:
+                        arg_final_value = rootS.find(arg_value).text
                 
                 elif arg_value.startswith(".", 0):
                     arg_value= arg_value.replace("/text()", "", 1)
@@ -132,6 +140,7 @@ def create_node(gen_ancestor_node, gen_node, count, path_2_value, current_subjec
             
             generator_args[arg_name]= arg_final_value
 
+
         generator = rootG.find(".//generator[@name= '"+generator_name+"']")
         generator_pattern= rootG.find(".//generator[@name= '"+generator_name+"']/pattern")
         
@@ -143,9 +152,14 @@ def create_node(gen_ancestor_node, gen_node, count, path_2_value, current_subjec
 
             for v in generator_variables:
                 generator_pattern_value= generator_pattern_value.replace("{"+v+"}", generator_args[v])
-            
+        
             generator_pattern_value= generator_pattern_value.replace(" ", "_")
             triple_object_identifier= generator_pattern_value
+    
+    if triple_object_identifier == "männlich/"+uuid:
+        triple_object_identifier= "type/"+uuid
+    if triple_object_identifier == "male/"+uuid:
+        triple_object_identifier= "type/"+uuid
 
 
     #create RDF triple and add it to graph
@@ -155,9 +169,7 @@ def create_node(gen_ancestor_node, gen_node, count, path_2_value, current_subjec
         g.add((triple_object, RDF.type, getattr(eval(target_entity_namespace), target_entity_type)))
         
         if with_rel:
-         
             g.add((current_subject, getattr(eval(relation_namespace), relation), triple_object))
-
         return triple_object
     
     elif (target_entity_type!= "") and (literal_value!= "") and (generator_name == "Literal"):
@@ -183,7 +195,6 @@ def create_label(gen_ancestor_node, label_gen_node, path_2_value, triple_object)
                 path_3= label_gen_node.find("./arg[@name='text']").text
                 path= "."+path_1+"/"+path_2+ "/"+ path_3
                 path= path.replace("/text()", "", 1)
-                #print("PATHHHHHHHH:"+ path)
                 if rootS.find(path) is not None:
                     label_text= rootS.find(path).text
             else: #else type attribute is "constant"
@@ -255,20 +266,15 @@ for q in rootM.iter("mapping"):
             #find predicate (i.e. namespace and relation type) of RDF triple (e.g. crm, P107)
             rel_namespace = y.text.split(":", maxsplit=1)[0]
             rel = y.text.split(":", maxsplit=1)[1]
-            #print("relation: "+rel)
 
 
             #find object (i.e. namespace and entity type) of RDF triple (e.g. crm, E21)
             target_entity_node= x.findall(".//entity")[counter]
             targ_entity_namespace="crm"
             targ_entity_type= ""
-            #print("counter: "+str(counter))
-            #print(target_entity_node)
             if (target_entity_node is not None) and (target_entity_node.find("./type") is not None):
                 targ_entity_namespace = target_entity_node.find("./type").text.split(":", maxsplit=1)[0]
                 targ_entity_type = target_entity_node.find("./type").text.split(":", maxsplit=1)[1]
-            #print("target_entity_namespace: "+targ_entity_namespace)
-            #print("target_entity_type: "+targ_entity_type)
 
 
             #get current xpath for xml input file given by current position in x3ml input file
@@ -295,7 +301,6 @@ for q in rootM.iter("mapping"):
             #update current_subj and counter
             current_subj= triple_obj
             counter+=1
-            print()
     
     outer_counter+=1
             
