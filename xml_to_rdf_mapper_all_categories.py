@@ -1,6 +1,11 @@
 # author: ETH Zurich, gta digital, Zoé Reinke
 # license: please refer to the license.txt file in our git repository (https://github.com/gtadigital/ProfileParser)
 
+#run the code by calling the transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath) function
+#the first 4 arguments denote the paths to the desired input and output files
+#the last argument denotes the xpath to the uuid tag in the input xml file. This variable depends on the category (AO, BW, group, person or place)
+#AO: "./entry/ao_record_uuid" BW: "./entry/oeu_nc_uuid" group: "./entry/_uuid" person: "./entry/_uuid" place: "./entry/plIdentifier_uuid"
+
 import logging
 import os
 import lxml.etree as ET
@@ -11,74 +16,6 @@ from rdflib import Graph
 from rdflib import Namespace
 from rdflib import *
 
- 
-
-
-sourceXML = ""
-sourceX3ML = ""
-generatorPolicy = ""
-
-f = open("", "wb")
-
-# read in X3ML file
-treeM = ET.parse(sourceX3ML)
-rootM = treeM.getroot()
-
-#read in source XML file
-treeS = ET.parse(sourceXML)
-rootS = treeS.getroot()
-
-#read in generator policy
-treeG = ET.parse(generatorPolicy)
-rootG = treeG.getroot()
-
-#create rdf graph
-g = Graph()
-
-
-#define namespaces
-rdf= Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-ulan= Namespace("http://vocab.getty.edu/page/ulan/")
-crm= Namespace("http://www.cidoc-crm.org/cidoc-crm/")
-rdfs= Namespace("http://www.w3.org/2000/01/rdf-schema#")
-crmdig= Namespace("http://www.ics.forth.gr/isl/CRMdig/")
-gnd= Namespace("https://d-nb.info/")
-frbr= Namespace("http://iflastandards.info/ns/fr/frbr/frbroo/")
-crmpc= Namespace("http://www.cidoc-crm.org/crmpc/")
-wikidata= Namespace("https://www.wikidata.org/entity/")
-sikart= Namespace("http://www.sikart.ch/")
-skos= Namespace("http://www.w3.org/2004/02/skos/core#")
-cpr= Namespace("https://www.schema.swissartresearch.net/cpr/")
-sari= Namespace("https://resource.swissartresearch.net/")
-tu = Namespace("https://resources.gta.arch.ethz.ch/terminology/transurbicide/")
-uuid = Namespace("")
-tgn = Namespace("http://vocab.getty.edu/tgn/")
-geonames= Namespace("https://www.geonames.org/")
-dbpedia= Namespace("http://dbpedia.org/resource/")
-viaf= Namespace("http://viaf.org/viaf/")
-nonamesp = Namespace("")
-http=Namespace("http")
-
-g.bind("ulan", ulan)
-g.bind("crm", crm)
-g.bind("rdfs", rdfs)
-g.bind("crmdig", crmdig)
-g.bind("gnd", gnd)
-g.bind("frbr", frbr)
-g.bind("crmpc", crmpc)
-g.bind("wikidata", wikidata)
-g.bind("sikart", sikart)
-g.bind("skos", skos)
-g.bind("cpr", cpr)
-g.bind("sari", sari)
-g.bind("tu", tu)
-g.bind("uuid", uuid)
-g.bind("tgn", tgn)
-g.bind("geonames", geonames)
-g.bind("dbpedia", dbpedia)
-g.bind("viaf", viaf)
-g.bind("nonamesp", nonamesp)
-g.bind("http", http)
 
 
 def concat_path(path_pt1, path_pt2):
@@ -100,7 +37,7 @@ def concat_path(path_pt1, path_pt2):
     return path_w
 
 
-def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_namespace, relation, target_entity_namespace, target_entity_type, val, with_rel, path, tag_num):
+def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_namespace, relation, target_entity_namespace, target_entity_type, val, with_rel, path, tag_num, uuid_xpath):
     generator_name = ""
     triple_object_identifier= ""
     literal_value=""
@@ -117,7 +54,7 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
             if rootS.find(path) is not None:
                 triple_object_identifier= rootS.find(path).text
         else:
-            uuid_local= rootS.find("./entry/_uuid").text
+            uuid_local= rootS.find(uuid_xpath).text
             triple_object_identifier=uuid_local+"-"+target_entity_type
             generator_namespace= "uuid"
 
@@ -281,118 +218,206 @@ def create_label(label_gen_node, path, triple_object, tag_num):
 
     #print(logging.info())
 
+def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
+    f = open(output_path, "wb")
 
-#fill graph
-for q in rootM.iter("mapping"):
-    
-    #xpath of source node of current mapping
-    path_1= q.find("./domain/source_node").text.split("root", maxsplit=1)[1]
-    path_2= ""
-    path= path_1.replace("/", "./", 1)
-    
-    
-    #if there are more than one tags with the current path in the input xml file, we create a rdf node for each of them
-    num_nodes = int(rootS.xpath('count('+path+')'))
+    # read in X3ML file
+    global treeM
+    treeM = ET.parse(sourceX3ML)
+    global rootM
+    rootM = treeM.getroot()
 
-    for n in range(0, num_nodes):
-        #after the first iteration we have to set the path value back to the initial value
+    #read in source XML file
+    global treeS 
+    treeS= ET.parse(sourceXML)
+    global rootS 
+    rootS= treeS.getroot()
+
+    #read in generator policy
+    global treeG 
+    treeG= ET.parse(generatorPolicy)
+    global rootG 
+    rootG= treeG.getroot()
+
+    #create rdf graph
+    global g 
+    g = Graph()
+
+
+    #define namespaces
+    global rdf
+    rdf= Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+    global ulan
+    ulan= Namespace("http://vocab.getty.edu/page/ulan/")
+    global crm
+    crm= Namespace("http://www.cidoc-crm.org/cidoc-crm/")
+    global rdfs
+    rdfs= Namespace("http://www.w3.org/2000/01/rdf-schema#")
+    global crmdig
+    crmdig= Namespace("http://www.ics.forth.gr/isl/CRMdig/")
+    global gnd
+    gnd= Namespace("https://d-nb.info/")
+    global frbr
+    frbr= Namespace("http://iflastandards.info/ns/fr/frbr/frbroo/")
+    global crmpc
+    crmpc= Namespace("http://www.cidoc-crm.org/crmpc/")
+    global wikidata
+    wikidata= Namespace("https://www.wikidata.org/entity/")
+    global sikart
+    sikart= Namespace("http://www.sikart.ch/")
+    global skos
+    skos= Namespace("http://www.w3.org/2004/02/skos/core#")
+    global cpr
+    cpr= Namespace("https://www.schema.swissartresearch.net/cpr/")
+    global sari
+    sari= Namespace("https://resource.swissartresearch.net/")
+    global tu
+    tu = Namespace("https://resources.gta.arch.ethz.ch/terminology/transurbicide/")
+    global uuid
+    uuid = Namespace("")
+    global tgn
+    tgn = Namespace("http://vocab.getty.edu/tgn/")
+    global geonames
+    geonames= Namespace("https://www.geonames.org/")
+    global dbpedia
+    dbpedia= Namespace("http://dbpedia.org/resource/")
+    global viaf
+    viaf= Namespace("http://viaf.org/viaf/")
+    global nonamesp
+    nonamesp = Namespace("")
+    global http
+    http=Namespace("http")
+
+    g.bind("ulan", ulan)
+    g.bind("crm", crm)
+    g.bind("rdfs", rdfs)
+    g.bind("crmdig", crmdig)
+    g.bind("gnd", gnd)
+    g.bind("frbr", frbr)
+    g.bind("crmpc", crmpc)
+    g.bind("wikidata", wikidata)
+    g.bind("sikart", sikart)
+    g.bind("skos", skos)
+    g.bind("cpr", cpr)
+    g.bind("sari", sari)
+    g.bind("tu", tu)
+    g.bind("uuid", uuid)
+    g.bind("tgn", tgn)
+    g.bind("geonames", geonames)
+    g.bind("dbpedia", dbpedia)
+    g.bind("viaf", viaf)
+    g.bind("nonamesp", nonamesp)
+    g.bind("http", http)
+
+
+    #fill graph
+    for q in rootM.iter("mapping"):
+        
+        #xpath of source node of current mapping
         path_1= q.find("./domain/source_node").text.split("root", maxsplit=1)[1]
         path_2= ""
         path= path_1.replace("/", "./", 1)
+        
+        
+        #if there are more than one tags with the current path in the input xml file, we create a rdf node for each of them
+        num_nodes = int(rootS.xpath('count('+path+')'))
 
-        domain_node = q.find("./domain")
-        mapping_generator_node = q.find("./domain/target_node/entity/instance_generator")
-        entity_namespace= domain_node.find("./target_node/entity/type").text.split(":", maxsplit=1)[0]
-        entity_type= domain_node.find("./target_node/entity/type").text.split(":", maxsplit=1)[1]
+        for n in range(0, num_nodes):
+            #after the first iteration we have to set the path value back to the initial value
+            path_1= q.find("./domain/source_node").text.split("root", maxsplit=1)[1]
+            path_2= ""
+            path= path_1.replace("/", "./", 1)
 
-        outer_value= ""
-        if rootS.findall(path)[n] is not None:
-            outer_value= rootS.findall(path)[n].text
+            domain_node = q.find("./domain")
+            mapping_generator_node = q.find("./domain/target_node/entity/instance_generator")
+            entity_namespace= domain_node.find("./target_node/entity/type").text.split(":", maxsplit=1)[0]
+            entity_type= domain_node.find("./target_node/entity/type").text.split(":", maxsplit=1)[1]
 
-        current_mapping = create_node(domain_node, mapping_generator_node, 0, None, "", "", entity_namespace, entity_type, outer_value, False, path, n)
+            outer_value= ""
+            if rootS.findall(path)[n] is not None:
+                outer_value= rootS.findall(path)[n].text
 
-        label_generator_node= q.find("./domain/target_node/entity/label_generator")
-        create_label(label_generator_node, path, current_mapping, n)
+            current_mapping = create_node(domain_node, mapping_generator_node, 0, None, "", "", entity_namespace, entity_type, outer_value, False, path, n, uuid_xpath)
 
-        #save xpath of current node in variable path_1
-        path_1= treeS.getpath(rootS.findall(path)[n])
-        path_1=path_1.replace("/root", ".", 1)
+            label_generator_node= q.find("./domain/target_node/entity/label_generator")
+            create_label(label_generator_node, path, current_mapping, n)
 
-
-        for x in q.iter("link"):
-
-            counter=0
-            current_subj_list=[]
-            current_subj_list.append(current_mapping)
-
-            for y in x.iter("relationship"):
-                triple_obj_list=[]
-
-                #find predicate (i.e. namespace and relation type) of RDF triple (e.g. crm, P107)
-                rel_namespace = y.text.split(":", maxsplit=1)[0]
-                rel = y.text.split(":", maxsplit=1)[1]
+            #save xpath of current node in variable path_1
+            path_1= treeS.getpath(rootS.findall(path)[n])
+            path_1=path_1.replace("/root", ".", 1)
 
 
-                #find object (i.e. namespace and entity type) of RDF triple (e.g. crm, E21)
-                target_entity_node= x.findall(".//entity")[counter]
-                targ_entity_namespace="crm" #default namespace
-                targ_entity_type= "" #default entity type
-                if (target_entity_node is not None) and (target_entity_node.find("./type") is not None):
-                    targ_entity_namespace = target_entity_node.find("./type").text.split(":", maxsplit=1)[0]
-                    targ_entity_type = target_entity_node.find("./type").text.split(":", maxsplit=1)[1]
+            for x in q.iter("link"):
+
+                counter=0
+                current_subj_list=[]
+                current_subj_list.append(current_mapping)
+
+                for y in x.iter("relationship"):
+                    triple_obj_list=[]
+
+                    #find predicate (i.e. namespace and relation type) of RDF triple (e.g. crm, P107)
+                    rel_namespace = y.text.split(":", maxsplit=1)[0]
+                    rel = y.text.split(":", maxsplit=1)[1]
 
 
-                #get current xpath for xml input file given by current position in x3ml input file
-                path_2= x.find("path/source_relation/relation").text
-                path= path_1 +"/"+ path_2
-
-                num_nodes = len(rootS.findall(path))
-
-                #if there are more than one tags with with the current path in the input xml file, we create a rdf node for each of them
-                for i in range(0, num_nodes):
-
-                    #check if there is a violated <if><exists>...</exists></if> condition which tells us not to create rdf nodes from the current relationship tag
-                    if rootS.findall(path)[i] is None and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
-                        break
-
-                    #value of current xpath in xml file
-                    value=""
-                    if rootS.findall(path)[i] is not None:
-                        value= rootS.findall(path)[i].text
-                    
+                    #find object (i.e. namespace and entity type) of RDF triple (e.g. crm, E21)
+                    target_entity_node= x.findall(".//entity")[counter]
+                    targ_entity_namespace="crm" #default namespace
+                    targ_entity_type= "" #default entity type
+                    if (target_entity_node is not None) and (target_entity_node.find("./type") is not None):
+                        targ_entity_namespace = target_entity_node.find("./type").text.split(":", maxsplit=1)[0]
+                        targ_entity_type = target_entity_node.find("./type").text.split(":", maxsplit=1)[1]
 
 
-                    #find identifier of the object of the current RDF triple  (e.g. "https://resource.swissartresearch.net/person/debb2cce-9ab9-4f68-8782-efea2ed5e152/birth")
-                    #from instance_generator tag in X3ML file and from corresponding generator tag in generator policy
-                    generator_node = x.findall(".//instance_generator")[counter]
-                    
-                    for subject in current_subj_list:
-                        #add new node to the graph
-                        triple_obj = create_node(x, generator_node, counter, subject, rel_namespace, rel, targ_entity_namespace, targ_entity_type, value, True, path, i)
-                        if triple_obj is None:
+                    #get current xpath for xml input file given by current position in x3ml input file
+                    path_2= x.find("path/source_relation/relation").text
+                    path= path_1 +"/"+ path_2
+
+                    num_nodes = len(rootS.findall(path))
+
+                    #if there are more than one tags with with the current path in the input xml file, we create a rdf node for each of them
+                    for i in range(0, num_nodes):
+
+                        #check if there is a violated <if><exists>...</exists></if> condition which tells us not to create rdf nodes from the current relationship tag
+                        if rootS.findall(path)[i] is None and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
                             break
-                            #if triple_obj is None a <if><exists>...<\exists><\if> was violated during the function call; therefore we end the current iteration of the for loop
 
-                        #add lebels
-                        #check if there are one or two label generators for the current triple_object, if yes gather necessary information for label 
-                        label_generator_node= generator_node.getnext()
-                        create_label(label_generator_node, path, triple_obj, i)
+                        #value of current xpath in xml file
+                        value=""
+                        if rootS.findall(path)[i] is not None:
+                            value= rootS.findall(path)[i].text
+                        
 
-                        if label_generator_node is not None:
-                            label_generator_node= generator_node.getnext().getnext()
+
+                        #find identifier of the object of the current RDF triple  (e.g. "https://resource.swissartresearch.net/person/debb2cce-9ab9-4f68-8782-efea2ed5e152/birth")
+                        #from instance_generator tag in X3ML file and from corresponding generator tag in generator policy
+                        generator_node = x.findall(".//instance_generator")[counter]
+                        
+                        for subject in current_subj_list:
+                            #add new node to the graph
+                            triple_obj = create_node(x, generator_node, counter, subject, rel_namespace, rel, targ_entity_namespace, targ_entity_type, value, True, path, i, uuid_xpath)
+                            if triple_obj is None:
+                                break
+                                #if triple_obj is None a <if><exists>...<\exists><\if> was violated during the function call; therefore we end the current iteration of the for loop
+
+                            #add lebels
+                            #check if there are one or two label generators for the current triple_object, if yes gather necessary information for label 
+                            label_generator_node= generator_node.getnext()
                             create_label(label_generator_node, path, triple_obj, i)
 
-                        triple_obj_list.append(triple_obj)
-                
-                #update current_subj and counter
-                current_subj_list= triple_obj_list
-                counter+=1
-        
+                            if label_generator_node is not None:
+                                label_generator_node= generator_node.getnext().getnext()
+                                create_label(label_generator_node, path, triple_obj, i)
+
+                            triple_obj_list.append(triple_obj)
+                    
+                    #update current_subj and counter
+                    current_subj_list= triple_obj_list
+                    counter+=1
             
-
-
-
-#write graph data in output file
-f.write(g.serialize(format='pretty-xml'))
-f.close()
+                
+    #write graph data in output file
+    f.write(g.serialize(format='pretty-xml'))
+    f.close()
 
