@@ -219,7 +219,7 @@ def create_label(label_gen_node, path, triple_object, tag_num):
     #print(logging.info())
 
 def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
-    f = open(output_path, "wb")
+    f = open(output_path, "w")
 
     # read in X3ML file
     global treeM

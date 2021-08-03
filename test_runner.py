@@ -1,5 +1,9 @@
-import xml_to_rdf_mapper_final_with_arguments
-from xml_to_rdf_mapper_final_with_arguments import transform
+import xml_to_rdf_mapper_all_categories
+from xml_to_rdf_mapper_all_categories import transform
 
-xml_to_rdf_mapper_final_with_arguments.transform("C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\Place\\input_xml_place.xml", "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\Place\\x3mlMapping_place.xml", "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\Place\\generator-policy_place.xml", "C:\\Users\\Zoe\\Documents\\Arbeit gta\\x3ml rdf transformation\\Place\\output_place_new.rdf", "./entry/plIdentifier_uuid")
+xml_to_rdf_mapper_all_categories.transform("input/sourceXMLPerson.xml", 
+	"mapping_schema/x3mlMapping.xml", 
+	"generator_policy/generator-policy.xml", 
+	"output/person.rdf", 
+	"./entry/_uuid")
 print("done")
