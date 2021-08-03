@@ -3,7 +3,7 @@
 
 #run the code by calling the transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath) function
 #the first 4 arguments denote the paths to the desired input and output files
-#the last argument denotes the xpath to the uuid tag in the input xml file. This variable depends on the category (AO, BW, group, person or place)
+#the last argument denotes the xpath to the uuid tag in the source xml file. This argument depends on the category (AO, BW, group, person or place) and should have one of the following values
 #AO: "./entry/ao_record_uuid" BW: "./entry/oeu_nc_uuid" group: "./entry/_uuid" person: "./entry/_uuid" place: "./entry/plIdentifier_uuid"
 
 import logging
@@ -17,7 +17,7 @@ from rdflib import Namespace
 from rdflib import *
 
 
-
+#this is a helper function that joins together an absolute and a relative xpath into one coherent absolute xpath
 def concat_path(path_pt1, path_pt2):
     path_w = ""
     occ = path_pt2.count("../")
@@ -37,6 +37,18 @@ def concat_path(path_pt1, path_pt2):
     return path_w
 
 
+#This function adds a new rdf node to the rdf graph.
+#To do so, it uses values provided directly by the function arguments (e.g. relation_namespace ("crm"), relation_name ("P2_has_type",...)) and values based on the current instance of the <instance_generator...> tag which are computed during the function call.
+#The current instance/node of the instance_generator tag is handed over to the function in the argument "gen_node". 
+#The attribute "name" of the instance_generator node (stored in variable "generator_name") tells us which generator to use from the generator policy.
+#The generators from the generator policy provide us with a specific pattern (stored in variable "generator_patterm") denoting how the URI identifier of the new node (later stored in the variable "triple_object_identifier") should be structured (e.g. "place/{place_id}/appellation/{appellation_id}")
+#The placeholder strings in the curly braces {} in the pattern are to be replaced with values specific to the new node which is to be created.
+#The values to be inserted into these placeholders are derived from the <arg ...> tags subordinated to the current <instance_generator...> tag. 
+#The values are provided either via a constant value or via an xpath leading to some value in the source xml file
+#Once obtained from the input files, these values are stored in the dictionary "generator_args" and inserted into the URI pattern in ll. 170-181
+#There are some instance_generator tags to whose name no generator of the generator policy corresponds, namely "UUID", "URIorUUID" and "Literal".
+#For these tags the URI identifier (var "triple_object_identifier") is created in a different way
+#In the end, the function creates the new rdf node and adds it to the graph
 def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_namespace, relation, target_entity_namespace, target_entity_type, val, with_rel, path, tag_num, uuid_xpath):
     generator_name = ""
     triple_object_identifier= ""
@@ -48,10 +60,16 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
     if gen_node is not None:
         generator_name= gen_ancestor_node.findall(".//instance_generator")[count].get("name")
 
+    #create the URI identifier of the node
+    #handle the three "edge case" generators UUID, URIorUUID and Literal
     if generator_name == "UUID":
 
-        if gen_node.find("arg") is not None:
-            if rootS.find(path) is not None:
+        if (gen_node.find("arg") is not None) and (gen_node.find("arg").get("type") == "xpath"):
+            generator_namespace="uuid"
+            path_3= gen_node.find("./arg").text
+            path_whole= concat_path(path, path_3)
+
+            if rootS.find(path_whole) is not None:
                 triple_object_identifier= rootS.find(path).text
         else:
             uuid_local= rootS.find(uuid_xpath).text
@@ -84,6 +102,11 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
                 
                 if rootS.find(path_whole) is not None and rootS.find(path_whole).text is not None:
                     literal_value= rootS.find(path_whole).text
+            
+            elif gen_node.find("./arg[@name='text']").text is not None:
+                #else we presume the attribute type is "constant"
+                literal_value= gen_node.find("./arg[@name='text']").text
+
         
         if gen_node.find("./arg[@name='language']") is not None:
             if gen_node.find("./arg[@name='language']").attrib['type'] == "xpath":
@@ -99,6 +122,7 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
                     literal_lang= rootS.find(path_whole).text
 
             else:
+                #else we presume the attribute type is "constant"
                 literal_lang= gen_node.find("./arg[@name='language']").text
     
     #standard case with generator_name matching to a generator in the generator policy
@@ -174,6 +198,13 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
     return
 
 
+#This function adds a mew rdf label to the rdf graph. To do so it uses one of the <label_generator...> tags in the X3ML mapping schema
+#The current instance/node of the label_generator tag is handed over to the function in the argument "label_gen_node". 
+#An rdf label contains a text <rdfs:label>xyz</rdfs:label> and may have a language attribute <rdfs:label lang="en">
+#The values of both the text and the language attribute can be obtained via the <arg...> tags subordinated to the label_generator tag.
+#Either they are provided by a constant value enclosed in the arg tags (<arg...>constant</arg>) or by an xpath leading to some value in the source xml file
+#Once obtained, these values are stored in the variables "label_text" and "lang_text"
+#In the end, the function creates the new rdf label based on the values computed in the function
 def create_label(label_gen_node, path, triple_object, tag_num):
     label_text=""
     lang_text=""
@@ -218,8 +249,27 @@ def create_label(label_gen_node, path, triple_object, tag_num):
 
     #print(logging.info())
 
+
+#This function does the main part of the xml to rdf transformation process.
+#First, we read in the input files and create a new empty rdf graph which will be filled in the course of the function call and define the necessary namespaces
+#Then, in order to create the new rdf nodes with the correct dependency structure, we loop through the x3ml mapping schema by the tags <mapping>, <link> and <relationship>:
+#For each <mapping> tag a "top-level" rdf node should be added to the graph which depends only on the root rdf node.
+#Each <link> tag defines a cascade of nodes which is dependent on the current mapping.
+#Within a <link>...</link> tag, each <relationship> tag defines a new node. These nodes have a top-down dependency structure where each node depends on the node defined by the <relationship> tag above it.
+#We store the node on which the new node to be created in the current iteration is dependent in the variable "current_subj_list"
+#To create the node we have to extract some necessary values from the x3ml mapping, namely:
+#the entity type (e.g. "E21_Person")(stored in variable "entity_type"), the entity namespace (e.g. "sari")(var "entity_namespece"),
+#the type of relation (e.g. "P2_has_type")(var "rel"), the relation namespace (e.g. "crm")(var "rel_namespace") and
+#the xpath leading to the corresponding values in the source xml file which is contained in the <source_node> tags of the x3ml mapping
+#Finally, with all this information gathered, we access the <instance_generator> tag belonging to the current <relationship> tag (i.e. the next instance_generator tag below the rel. tag)
+#and create the new rdf node by calling the create_node() function
+#If there are <label_generator> tags belonging to the current relationship tag, we create a rdf label for each of them by calling the create_label() function
+
+#the for loops "for n in range(0, num_nodes):..." and "for i in range(0, num_nodes):..." serve the following purpose:
+#sometimes when creating a new rdf node, there is more than one tag in the source xml file corresponding to the current xpath denoted in the x3ml mapping.
+#In this case, we want to create a new node for each of the tags in the source xml file. Therefore we count the number of occurrences of the current xpath in the source xml file and do the node creation procedure for each of them
 def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
-    f = open(output_path, "w")
+    f = open(output_path, "wb")
 
     # read in X3ML file
     global treeM
@@ -310,7 +360,7 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
     g.bind("http", http)
 
 
-    #fill graph
+    #fill the graph
     for q in rootM.iter("mapping"):
         
         #xpath of source node of current mapping
@@ -327,7 +377,8 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
             path_1= q.find("./domain/source_node").text.split("root", maxsplit=1)[1]
             path_2= ""
             path= path_1.replace("/", "./", 1)
-
+            
+            #get the entity namespace (e.g. "crm") and the entity type (e.g. "E21_Person") of the top-level node
             domain_node = q.find("./domain")
             mapping_generator_node = q.find("./domain/target_node/entity/instance_generator")
             entity_namespace= domain_node.find("./target_node/entity/type").text.split(":", maxsplit=1)[0]
@@ -337,6 +388,7 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
             if rootS.findall(path)[n] is not None:
                 outer_value= rootS.findall(path)[n].text
 
+            #create the new top-level node and add it to thegraph. In order to access it later on, when we create nodes dependent on it, we store it in the variable current_mapping
             current_mapping = create_node(domain_node, mapping_generator_node, 0, None, "", "", entity_namespace, entity_type, outer_value, False, path, n, uuid_xpath)
 
             label_generator_node= q.find("./domain/target_node/entity/label_generator")
@@ -350,11 +402,11 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
             for x in q.iter("link"):
 
                 counter=0
-                current_subj_list=[]
+                current_subj_list=[] #in this list we store the nodes on which the nodes created in the inner for loops are dependent
                 current_subj_list.append(current_mapping)
 
                 for y in x.iter("relationship"):
-                    triple_obj_list=[]
+                    triple_obj_list=[] #in this list we store the nodes created in the inner for loops in order to be able to access them later on
 
                     #find predicate (i.e. namespace and relation type) of RDF triple (e.g. crm, P107)
                     rel_namespace = y.text.split(":", maxsplit=1)[0]
