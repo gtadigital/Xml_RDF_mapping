@@ -41,15 +41,6 @@ $ pip install -r requirements.txt
    
 * Run the scripts:
 
-  Transform an XML file to an RDF file according to a certain X3ML mapping schema and a corresponding generator policy:
-
-    In the test_runner.py file (l.4), provide the correct arguments to the xml_to_rdf_mapper.transformAll(...) function. the first 4 arguments denote the paths to the desired input and output files. The last argument denotes the xpath to the uuid tag in the source xml file. This argument depends on the category (AO, BW, group, person or place) and should have one of the following values: 
-      - AO: "./entry/ao_record_uuid" 
-      - BW: "./entry/oeu_nc_uuid" 
-      - group: "./entry/_uuid" 
-      - person: "./entry/_uuid" 
-      - place: "./entry/plIdentifier_uuid"
-
     Then run test_runner.py 
     ```bash
     # Run the script
@@ -57,7 +48,7 @@ $ pip install -r requirements.txt
     ```
   
 
-  Concatenate all rdf files in a certain directory:
+* Concatenate all rdf files in a certain directory:
   
     Save the path to the directory containing the rdf files in the variable base_directory (l.5) and save the path to the directory which will contain the newly generated big rdf file in the variable output_directory (l.6)
 
