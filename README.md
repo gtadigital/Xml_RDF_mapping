@@ -1,11 +1,7 @@
 # Xml_RDF_mapping
 
-
-The xml_to_rdf_mapper.py file provides the function transformAll(), which takes as arguments a source XML file, an x3ml mapping schema in XML format, a generator policy also in XML format and a string value denoting the xpath from the root to the uuid in the source xml file, and transforms the data provided in the source XML file to an rdf graph according to the schema defined in the x3ml mapping and the generator policy.
-
-The test_runner.py file is a helper file which makes it easy to run the transformAll()-function from the xml_to_rdf_mapperpy file directly from the terminal.
-
-The concatenate_rdf_files.py file concatenates all rdf files which are in the directory whose path is saved in the base_directory variable (l.5) and saves the newly generated, big rdf graph in the directory whose path is saved in the output_directory variable (l.6.)
+The goal of this tool is to transform XML into RDF graph(s) according to CIDOC-CRM ontology.
+The transformation is done by using the X3M mapping schema.
 
 ## Installation
 
