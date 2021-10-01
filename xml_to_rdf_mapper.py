@@ -403,6 +403,13 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
                         if rootS.findall(path)[i] is None and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
                             break
 
+                        #check if there is a violated <if><equals>...</equals></if> condition.
+                        if (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag == "if" and target_entity_node.getprevious().find("equals") is not None):
+                            temp_path_pt2= target_entity_node.getprevious().find("equals").text
+                            temp_path = concat_path(path, temp_path_pt2)
+                            if (rootS.findall(temp_path)[i] is not None and rootS.findall(temp_path)[i].text != target_entity_node.getprevious().find("equals").attrib['value']):
+                                break
+
                         #value of current xpath in xml file
                         value=""
                         if rootS.findall(path)[i] is not None:
