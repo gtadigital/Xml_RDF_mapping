@@ -44,7 +44,7 @@ $ pip install -r requirements.txt
     Then run test_runner.py 
     ```bash
     # Run the script
-    $ python3 python test_runner.py
+    $ python3  test_runner.py
     ```
   
 
