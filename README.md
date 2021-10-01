@@ -41,10 +41,10 @@ $ pip install -r requirements.txt
    
 * Run the scripts:
 
-    Then run test_runner.py 
+    Then run runner.py 
     ```bash
     # Run the script
-    $ python3  test_runner.py
+    $ python3  runner.py
     ```
   
 
