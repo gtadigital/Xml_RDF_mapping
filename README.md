@@ -39,13 +39,20 @@ $ source .venv/bin/activate
 $ pip install -r requirements.txt
 ```
    
-* Run the scripts:
+* Run runner.py with arguments:
 
-    Then run runner.py 
-    ```bash
-    # Run the script
-    $ python3  runner.py
-    ```
+     ```bash
+
+     # Help documentation
+     $ python3 runner.py --help
+
+     OR
+
+     # Run the script
+     $ python3 runner.py --source_XML "path of the source XML file" --gen_pol "path of the generator policy file" --x3ml_mapping "path of the X3ML mapping file" --out_path  "path of the folder which will contain the output files" --path_to_uuid "path to the uuid tag in the source XML file"
+
+     ```
+    
   
 
 * Concatenate all rdf files in a certain directory:
