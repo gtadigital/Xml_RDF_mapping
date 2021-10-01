@@ -3,16 +3,12 @@
 
 #run the code by calling the transformAll(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath) function
 
-import logging
-import os
-import lxml.etree as ET
-import argparse
-import rdflib
-import re
 import copy
-from rdflib import Graph
-from rdflib import Namespace
+import re
+
+import lxml.etree as ET
 from rdflib import *
+from rdflib import Graph, Namespace
 
 
 #this is a helper function that joins together an absolute and a relative xpath into one coherent absolute xpath
