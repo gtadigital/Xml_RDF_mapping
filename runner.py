@@ -1,7 +1,7 @@
 import argparse
 
-import xml_to_rdf_mapper_final_with_arguments
-from xml_to_rdf_mapper_final_with_arguments import transform
+import xml_to_rdf_mapper
+from xml_to_rdf_mapper import transform
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='run xml to rdf transformation')
