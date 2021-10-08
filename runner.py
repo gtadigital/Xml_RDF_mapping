@@ -18,5 +18,5 @@ if __name__ == "__main__":
     out_path = args.out_path
     path_to_uuid = args.path_to_uuid
 
-    xml_to_rdf_mapper_final_with_arguments.transformAll(source_XML, x3ml_mapping, gen_pol, out_path, path_to_uuid)
+    xml_to_rdf_mapper.transformAll(source_XML, x3ml_mapping, gen_pol, out_path, path_to_uuid)
     print("done")
