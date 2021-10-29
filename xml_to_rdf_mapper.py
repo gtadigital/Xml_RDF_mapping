@@ -5,6 +5,7 @@
 
 import copy
 import re
+import queue
 
 import lxml.etree as ET
 from rdflib import *
@@ -29,6 +30,15 @@ def concat_path(path_pt1, path_pt2):
         path_w = path_pt1+"/"+path_pt2
     
     return path_w
+
+#This is a helper function that counts the number of closed <additional> tags that come directly before the node passed as an argument
+def get_number_of_closed_additional_tags(n):
+    if n is None:
+        return 0
+    num = len(n.getchildren())
+    if (n is not None) and (n.getchildren()[(num-1)] is not None) and (n.getchildren()[(num-1)].tag == "additional"):
+        return (1 + get_number_of_closed_additional_tags(n.getchildren()[(num-1)].getchildren()[(len(n.getchildren()[(num-1)])-1)])) 
+    return 0
 
 
 #This function adds a new rdf node to the rdf graph.
@@ -57,7 +67,9 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
                 triple_object_identifier= rootS.find(path).text
         else:
             uuid_local= rootS.find(uuid_xpath).text
-            triple_object_identifier=uuid_local+"-"+target_entity_type
+            global uuid_counter
+            triple_object_identifier=uuid_local+"-"+target_entity_type+"-"+str(uuid_counter)
+            uuid_counter = uuid_counter +1
             generator_namespace= "uuid"
 
     elif generator_name == "URIorUUID":
@@ -292,7 +304,7 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
     global tu
     tu = Namespace("https://resources.gta.arch.ethz.ch/terminology/transurbicide/")
     global uuid
-    uuid = Namespace("")
+    uuid = Namespace("urn:uuid:")
     global tgn
     tgn = Namespace("http://vocab.getty.edu/tgn/")
     global geonames
@@ -327,6 +339,9 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
     g.bind("nonamesp", nonamesp)
     g.bind("http", http)
 
+    #initialize counter for uuid
+    global uuid_counter
+    uuid_counter = 0
 
     #fill the graph
     for q in rootM.iter("mapping"):
@@ -364,16 +379,29 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
 
             #save xpath of current node in variable path_1
             path_1= treeS.getpath(rootS.findall(path)[n])
-            path_1=path_1.replace("/root", ".", 1)
+            path_1= path_1.replace("/root", ".", 1)
 
+            qu = queue.LifoQueue()
 
             for x in q.iter("link"):
 
                 counter=0
                 current_subj_list=[] #in this list we store the nodes on which the nodes created in the inner for loops are dependent
                 current_subj_list.append(current_mapping)
+                qu.queue.clear()
+
 
                 for y in x.iter("relationship"):
+
+                    num_closed_additional = get_number_of_closed_additional_tags(y.getprevious())
+
+                    for j in range(0, num_closed_additional):
+                        if not(qu.empty()):
+                            current_subj_list = qu.get()
+
+                    if y.getparent().tag == "additional":
+                        qu.put(current_subj_list)
+
                     triple_obj_list=[] #in this list we store the nodes created in the inner for loops in order to be able to access them later on
 
                     #find predicate (i.e. namespace and relation type) of RDF triple (e.g. crm, P107)
@@ -401,6 +429,8 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
 
                         #check if there is a violated <if><exists>...</exists></if> condition which tells us not to create rdf nodes from the current relationship tag
                         if rootS.findall(path)[i] is None and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
+                            break
+                        if (rootS.findall(path)[i] is not None and (rootS.findall(path)[i].text is None or rootS.findall(path)[i].text =="")) and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
                             break
 
                         #check if there is a violated <if><equals>...</equals></if> condition.
@@ -456,6 +486,7 @@ def transformAll(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath
     root_xml_whole= xml_whole.getroot()
     
     counter=0
+
     for entry in root_xml_whole.findall(".//entry"):
 
         temp_root= ET.Element("root")
