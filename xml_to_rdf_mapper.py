@@ -43,7 +43,7 @@ def get_number_of_closed_additional_tags(n):
 
 #This function adds a new rdf node to the rdf graph.
 #To do so, it uses values provided directly by the function arguments (e.g. relation_namespace ("crm"), relation_name ("P2_has_type",...)) and values based on the current instance of the <instance_generator...> tag which are computed during the function call.
-def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_namespace, relation, target_entity_namespace, target_entity_type, val, with_rel, path, tag_num, uuid_xpath):
+def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_namespace, relation, target_entity_namespace, target_entity_type, val, with_rel, path, tag_num, uuid_xpath, is_mapping):
     generator_name = ""
     triple_object_identifier= ""
     literal_value=""
@@ -58,6 +58,8 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
     #handle the three "edge case" generators UUID, URIorUUID and Literal
     if generator_name == "UUID":
 
+        global uuid_dict
+
         if (gen_node.find("arg") is not None) and (gen_node.find("arg").get("type") == "xpath"):
             generator_namespace="uuid"
             path_3= gen_node.find("./arg").text
@@ -65,11 +67,17 @@ def create_node(gen_ancestor_node, gen_node, count, current_subject, relation_na
 
             if rootS.find(path_whole) is not None:
                 triple_object_identifier= rootS.find(path).text
+
+        elif (is_mapping and (target_entity_type in uuid_dict)):
+            triple_object_identifier = uuid_dict[target_entity_type]
+            generator_namespace= "uuid"
+        
         else:
             uuid_local= rootS.find(uuid_xpath).text
             global uuid_counter
             triple_object_identifier=uuid_local+"-"+target_entity_type+"-"+str(uuid_counter)
             uuid_counter = uuid_counter +1
+            uuid_dict[target_entity_type] = triple_object_identifier
             generator_namespace= "uuid"
 
     elif generator_name == "URIorUUID":
@@ -342,6 +350,9 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
     #initialize counter for uuid
     global uuid_counter
     uuid_counter = 0
+    #initialize the dictionary storing the types and URIs of UUID nodes
+    global uuid_dict
+    uuid_dict = {}
 
     #fill the graph
     for q in rootM.iter("mapping"):
@@ -372,7 +383,7 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
                 outer_value= rootS.findall(path)[n].text
 
             #create the new top-level node and add it to thegraph. In order to access it later on, when we create nodes dependent on it, we store it in the variable current_mapping
-            current_mapping = create_node(domain_node, mapping_generator_node, 0, None, "", "", entity_namespace, entity_type, outer_value, False, path, n, uuid_xpath)
+            current_mapping = create_node(domain_node, mapping_generator_node, 0, None, "", "", entity_namespace, entity_type, outer_value, False, path, n, uuid_xpath, True)
 
             label_generator_node= q.find("./domain/target_node/entity/label_generator")
             create_label(label_generator_node, path, current_mapping, n)
@@ -430,8 +441,10 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
                         #check if there is a violated <if><exists>...</exists></if> condition which tells us not to create rdf nodes from the current relationship tag
                         if rootS.findall(path)[i] is None and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
                             break
-                        if (rootS.findall(path)[i] is not None and (rootS.findall(path)[i].text is None or rootS.findall(path)[i].text =="")) and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
-                            break
+                        #if (rootS.findall(path)[i] is not None and (rootS.findall(path)[i].text is None or rootS.findall(path)[i].text =="")) and ((y.getprevious() is not None and y.getprevious().tag == "if") or (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag== "if")):
+                        #    if targ_entity_type == "E42_Identifier" and rel=="P1_is_identified_by" and rootS.find("./entry/ao_system_object_id").text=="140830":
+                        #        print("here")
+                        #    break
 
                         #check if there is a violated <if><equals>...</equals></if> condition.
                         if (target_entity_node.getprevious() is not None and target_entity_node.getprevious().tag == "if" and target_entity_node.getprevious().find("equals") is not None):
@@ -453,7 +466,7 @@ def transform(sourceXML, sourceX3ML, generatorPolicy, output_path, uuid_xpath):
                         
                         for subject in current_subj_list:
                             #add new node to the graph
-                            triple_obj = create_node(x, generator_node, counter, subject, rel_namespace, rel, targ_entity_namespace, targ_entity_type, value, True, path, i, uuid_xpath)
+                            triple_obj = create_node(x, generator_node, counter, subject, rel_namespace, rel, targ_entity_namespace, targ_entity_type, value, True, path, i, uuid_xpath, False)
                             if triple_obj is None:
                                 break
                                 #if triple_obj is None a <if><exists>...<\exists><\if> was violated during the function call; therefore we end the current iteration of the for loop
